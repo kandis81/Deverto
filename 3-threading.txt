@@ -1,0 +1,43 @@
+# ----------------------------------------------------------------------------------------
+# 5. Threads
+# ----------------------------------------------------------------------------------------
+
+# Q: What is the difference between a multi threaded and multi process application?
+# ----------------------------------------------------------------------------------------
+
+# A:
+#
+# Multi threading: One program starts more threads, which are running pralel.
+# Multi processing: More program running in same time. Two different types are available
+#    as multi processing solution:
+#    fork : Available on unix systems only. The 'fork()' call is create a copy of actual
+#           running process into memory under a different process id (PID).
+#    run another binary: This solution is available on Windows as 'CreateProcess()' function,
+#           and on linux like 'system()' call. In this case, no copied memory, so the new
+#           process will initialize its resources again.
+#
+# This solution solves those problem, if any critical problem happening on the child
+# processes, it will not kill the program. The main process could restart it again.
+# It has not same memory parts like in case of threads, so we should to solve the data
+# flows ourself via sockets or shared memories & shared queues (IPC - Inter Process Communication).
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+# 6. Deadlock
+# ----------------------------------------------------------------------------------------
+
+# Q: What is the deadlock? How can it happen? How can it be avoided?
+# ----------------------------------------------------------------------------------------
+
+# A1: Deadlock is when a thread or process is blocking itself or themself.
+# ----------------------------------------------------------------------------------------
+
+# A2: Bad mutexing, or a simple never ending cicle.
+# ----------------------------------------------------------------------------------------
+
+# A3: Avoid options:
+# - Minimal mutexing.
+# - Save short codes with mutexes if it is possible.
+# - Timeouts. If any get of resources is working long time, then generate error instead of
+#   wait for more time.
+# ----------------------------------------------------------------------------------------
