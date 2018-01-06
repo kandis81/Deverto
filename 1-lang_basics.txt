@@ -1,0 +1,265 @@
+# ----------------------------------------------------------------------------------------
+# 1. Vitual methods
+# ----------------------------------------------------------------------------------------
+
+# Q: What are vitual methods, what can be achieved with them, what happends if the keyword is omitted?
+# ----------------------------------------------------------------------------------------
+
+# A1 (meaning): The virtual methods meaning, that these functions/procedures are enabled to overwrite by inheritance.
+# ----------------------------------------------------------------------------------------
+
+Example:
+
+class A
+{
+   public:
+
+      virtual void show() { printf("1\n"); }
+};
+
+class B : public A
+{
+   public:
+
+      void show() { printf("2\n"); }
+};
+
+int main(void)
+{
+   A  a;
+   B  b;
+   A& c = a;
+
+   a.show();
+   b.show();
+   c.show();
+
+   return 0;
+}
+
+Result:
+
+1
+2
+2
+
+# A2 (achieve): We could achieve with it, that we can replace some codes in inherited class via these hooks. We could use it for source injection.
+# ----------------------------------------------------------------------------------------
+
+class A
+{
+   public:
+      virtual A() {}
+
+      virtual void show() { printf("1\n"); }
+};
+
+class B : public A
+{
+   public:
+
+      virtual void show() { printf("2\n"); }
+};
+
+class C
+{
+   public:
+
+      virtual A* getNewClass() { return new A(); }
+
+      void test()
+      {
+          A* a= getNewClass();
+
+          a->show();
+
+          delete a;
+      }
+};
+
+class D : public C
+{
+   public:
+
+      virtual A* getNewClass() { return new B(); }
+};
+
+int main(void)
+{
+   C c;
+   D d;
+
+   c.test();
+   d.test();
+}
+
+Result:
+
+1
+2
+
+
+# A3 (omit): If the class is casted to parent pointer, then the function/procedure of parent class will be called.
+# ----------------------------------------------------------------------------------------
+
+Example:
+
+class A
+{
+   public:
+
+              void showA() { printf("A\n"); }
+      virtual void showB() { printf("A\n"); }
+
+      void test()
+      {
+          showA();
+          showB();
+      }
+};
+
+class B : public A
+{
+              void showA() { printf("B\n"); }
+      virtual void showB() { printf("B\n"); }
+};
+
+int main(void)
+{
+   A a;
+   B b;
+
+   a.test();
+   b.test();
+}
+
+Result:
+
+A
+B
+B
+B
+
+# ----------------------------------------------------------------------------------------
+# Memory
+# ----------------------------------------------------------------------------------------
+
+# Q: Where can a variable (basic type or object) be stored in memory? Give an example for each allocation type.
+# ----------------------------------------------------------------------------------------
+
+# A: We could use 3 memory type to store variables: static, stack, heap.
+#    (The program has a 4th memory type too under runtime, but it is not available inside of program,
+#     due to it contains the binary of program. The name of this memory is the 'core')
+#
+# Static: Typically, these varaibles allocated with start of program, and initialized at first usage. One type
+#         is different in case of initialization. If you use the 'constexpr' keyword. The allocation & free is
+#         handled automatically.
+# Stack:  This memory part contains the actual calls (call stack) & the local allocated memories. The allocation
+#         and free is handled automatically. This type is used to little local variables in functions.
+# Heap:   This is a dynamic allocation type. Used to store big memories or move data blocks betveen functions without
+#         copy these memory blocks. We should to define allocation & deallocation points.
+# ----------------------------------------------------------------------------------------
+
+Example:
+
+// static
+static constexpr char EOL='\n';
+int ErrorCode=100;
+
+int main(void)
+{
+   // Static
+   static int SizeInMain = 20;
+
+   // Stack
+   std::string str;
+   char block[100];
+
+   // Heap
+   char* ptr = new char[100];
+   int* nr   = new int;
+
+   delete [] ptr;
+   delete nr;
+
+   return 0;
+}
+
+
+# ----------------------------------------------------------------------------------------
+# Smart pointer
+# ----------------------------------------------------------------------------------------
+
+# Q: What are "smart pointers", what problem do they address, and how do they work.
+# ----------------------------------------------------------------------------------------
+
+# A: This a 'garbage collector' solution in C++. It wants to help to avoid 'missing free' and
+#    'double free' problems at heap memory usage. This solution is collected int 3 types:
+#    unique_ptr, shared_ptr, weak_ptr.
+#
+# unique_ptr : We could not share these pointers (copy constructor is not available), just move it to another.
+# shared_ptr : We can share this pointer & if the last reference is freed, it will free too. So, it has
+#              reference counter.
+# weak_ptr   : We can store reference to a 'shared_ptr', but it is not growing the reference counter.
+# ----------------------------------------------------------------------------------------
+
+Example:
+
+void uniquePtrExample()
+{
+   unique_ptr<int> num( new int(5) ); // owner is num
+   cout << *num << endl;
+
+   {
+       unique_ptr<int> num2( move( num ) ); // now the owner of this pointer is the num2
+       *num2 = 3;
+       cout << *num2 << endl;
+       num = move( num2 ); // num is the owner again
+
+       // mum2 is free at here
+   }
+
+   cout << *num << endl;
+   // num is freed here
+}
+
+void sharedAndWeakPointerExample()
+{
+   // create shared & weak ptr
+   shared_ptr<int> num( new int(5) );
+   weak_ptr<int> wnum = num;
+   cout << *num << endl;
+
+   {
+      // make shared pointer from weak pointer
+      shared_ptr<int> num2 = wnum.lock();
+      *num2 = 10;
+   }
+
+   cout << *num << endl;
+   // shared pointer freed
+   num.reset();
+
+   // check that the shared pointer is available or not
+   if ( wnum.expired() )
+      cout << "Expired!" << endl;
+}
+
+int main( void )
+{
+   uniquePtrExample();
+   sharedAndWeakPointerExample();
+
+   return 0;
+}
+
+Result:
+
+5
+3
+3
+5
+10
+Expired!
+
+
