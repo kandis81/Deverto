@@ -7,26 +7,18 @@
 #include <queue>
 #include <thread>
 
-#define DEBUG( str ) std::cout << "DEBUG: " << std::string( str ) << std::endl
+/*
+ * QueueEntry : Tecnically, I saw so, that a string object sending is enough for test.
+ *              If I would like to do someting with this suource, I can remove this
+ *              alias & implement the real class.
+ */
+
+using QueueEntry = std::string;
 
 
-class QueueEntry
-{
-   private:
-
-      std::string message;
-
-   public:
-
-      QueueEntry( std::string aMessage )
-         : message( aMessage )
-      {}
-
-   public:
-
-      inline void setMessage( std::string aMessage ) { message = aMessage; }
-      inline std::string& getMessage() { return message; }
-};
+/*
+ * ThreadSafeQueue : It is an thread safe queue what was the task.
+ */
 
 class ThreadSafeQueue
 {
@@ -52,6 +44,11 @@ class ThreadSafeQueue
 
    public:
 
+      /*
+       * Push : It works in strict mode, so it will wait to push its entry till
+       *        this task is done.
+       */
+
       void Push( QueueEntry& aEnt )
       {
          bool isSuccess = false;
@@ -63,7 +60,7 @@ class ThreadSafeQueue
             popMutex.lock();
             if ( queue.size() < MaxQueueEntry )
             {
-               DEBUG( "Pushed " + aEnt.getMessage() );
+               std::cout << "-> " << aEnt << std::endl;
                queue.push( aEnt );
                isSuccess = true;
             }
@@ -75,16 +72,19 @@ class ThreadSafeQueue
 
             if ( !isSuccess )
             {
-               // Keep time for Pop method call
+               // Queue is full, so it should wait a little bit to reader thread
                pushMutex.unlock();
-               usleep( 100 );
+               usleep( 100 ); // Give time for another threads to remove items from queue
                pushMutex.lock();
             }
          }
 
          pushMutex.unlock();
-         usleep( 100 );
       }
+
+      /*
+       * Pop : read & remove an entry from queue.
+       */
 
       QueueEntry& Pop()
       {
@@ -95,7 +95,10 @@ class ThreadSafeQueue
          lastMessage  = !isEmpty ? queue.front() : defaultMessage;
 
          if ( !isEmpty )
+         {
+            std::cout << "<- " << lastMessage << std::endl;
             queue.pop();
+         }
 
          popMutex.unlock();
          pushMutex.unlock();
@@ -103,6 +106,10 @@ class ThreadSafeQueue
          return lastMessage;
       }
 };
+
+/*
+ * Thread: Generic thread starter class based on std::thread.
+ */
 
 class Thread
 {
@@ -127,6 +134,10 @@ class Thread
 
    public:
 
+      /*
+       * Start of thred
+       */
+
       virtual int start( int aForced = false )
       {
          printf( "Preparing start of thread...\n" );
@@ -145,10 +156,14 @@ class Thread
             }
          }
 
-         std::cout  <<"Starting thread..." << std::endl;
+         std::cout << "Starting thread..." << std::endl;
          thread = new std::thread( startThread, this );
          std::cout << "Thread is started." << std::endl;
       }
+
+      /*
+       * Helper function to call the run function of this class.
+       */
 
       static void startThread( Thread* thread )
       {
@@ -156,8 +171,15 @@ class Thread
          thread->isActive = true;
          id << std::this_thread::get_id();
          id >> thread->thread_id;
+
+         std::cout << "Start [" << thread->thread_id << "]" << std::endl;
          thread->run();
+         std::cout << "Stop  [" << thread->thread_id << "]" << std::endl;
       }
+
+      /*
+       * Stop of thred
+       */
 
       virtual void stop()
       {
@@ -167,17 +189,30 @@ class Thread
          if ( !isActive )
             return ;
 
+         std::cout << "Stopping thread..." << std::endl;
+
          isActive = false;
          thread->join();
 
          delete thread;
          thread = nullptr;
+
+         std::cout << "Thread is stopped." << std::endl;
       }
 
    public:
 
+      /*
+       * Pure virtual function to implement the workflow of thread.
+       */
+
       virtual void run() = 0;
 };
+
+/*
+ * ThreadWithQueue : The both thread type will have the same queue, so I would like
+ *                   to avoid the duplicated source whit this class.
+ */
 
 class ThreadWithQueue : public Thread
 {
@@ -195,6 +230,10 @@ class ThreadWithQueue : public Thread
 
       virtual ~ThreadWithQueue() {};
 };
+
+/*
+ * ProducerThread : This thread will push data into the queue.
+ */
 
 class ProducerThread : public ThreadWithQueue
 {
@@ -215,10 +254,12 @@ class ProducerThread : public ThreadWithQueue
 
       void run()
       {
-         while( isActive )
+         // Source part from PDF
+         while( isActive ) // I would like to stop threads so I added activate checking instead of simple 'true'
          {
             QueueEntry ent = CreateANewEntry();
             queue.Push( ent );
+            usleep( 100 ); // Give time for another threads before push again
          }
       }
 
@@ -226,10 +267,14 @@ class ProducerThread : public ThreadWithQueue
 
       QueueEntry& CreateANewEntry()
       {
-         lastEntry.setMessage( "Message from " + thread_id );
+         lastEntry = "Message from " + thread_id;
          return lastEntry;
       }
 };
+
+/*
+ * ConsumerThread : This thread will read & remove data from the queue.
+ */
 
 class ConsumerThread : public ThreadWithQueue
 {
@@ -245,7 +290,8 @@ class ConsumerThread : public ThreadWithQueue
 
       void run()
       {
-         while ( isActive )
+         // Source part from PDF
+         while ( isActive ) // I would like to stop threads so I added activate checking instead of simple 'true'
          {
             QueueEntry ent = queue.Pop();
             ProcessQueueEntry( ent );
@@ -256,12 +302,18 @@ class ConsumerThread : public ThreadWithQueue
 
       void ProcessQueueEntry( QueueEntry& aEnt )
       {
-         std::cout << aEnt.getMessage() << std::endl;
+         std::cout << "Message received: " << aEnt << std::endl;
       }
 };
 
+/*
+ * Main
+ */
+
 int main( void )
 {
+   std::cout << "Program started" << std::endl;
+
    ThreadSafeQueue queue;
    ConsumerThread  reader ( queue );
    ProducerThread  writer1( queue ),
@@ -275,13 +327,15 @@ int main( void )
    writer3.start();
    writer4.start();
 
-   usleep(10000);
+   usleep(100000);
 
    writer1.stop();
    writer2.stop();
    writer3.stop();
    writer4.stop();
    reader.stop();
+
+   std::cout << "Program ended" << std::endl;
 
    return 0;
 }
