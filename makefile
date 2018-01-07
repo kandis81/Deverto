@@ -1,9 +1,14 @@
 
 cpp = g++
+cflags = -ggdb -std=c++11
 
 all:
-	rm -f $@
-	make fifthpowers
+	make fpower
+	make qtest
 
-fifthpowers:
-	$(cpp) -o $@ 2-fifth_powers.cpp
+fpower:
+	$(cpp) $(cflags) -o fifthpowers 2-fifth_powers.cpp
+
+qtest:
+	$(cpp) $(cflags) -o queuetest 4-queue.cpp -lpthread
+
